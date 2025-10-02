@@ -31,14 +31,6 @@ const CATEGORY_CONFIG: CategoryOption[] = [
   { code: "exonumia", name: "Exonumia", value: "exonumia" },
 ];
 
-const CATEGORY_VALUE_BY_CODE = CATEGORY_CONFIG.reduce<Record<string, string>>(
-  (acc, category) => {
-    acc[category.code] = category.value;
-    return acc;
-  },
-  {}
-);
-
 const sourceCoins: RawCoin[] = Array.isArray(coinsData)
   ? (coinsData as RawCoin[])
   : [];
@@ -99,9 +91,7 @@ const filterCoins = (
   const searchLower = search?.trim().toLowerCase() ?? "";
   const hasSearch = searchLower.length > 0;
   const issuerFilter = issuer && issuer !== "ALL" ? issuer : null;
-  const categoryFilter = category
-    ? CATEGORY_VALUE_BY_CODE[category.toLowerCase()] ?? null
-    : null;
+  const categoryFilter = category && category !== "ALL" ? category.toLowerCase() : null;
 
   return coins.filter((coin) => {
     const title = coin.title ?? "";

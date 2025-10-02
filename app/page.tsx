@@ -80,6 +80,7 @@ export default function Home() {
   const [issuers, setIssuers] = useState<Issuer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [type, setType] = useState("ALL");
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -91,7 +92,7 @@ export default function Home() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedIssuer, issuedAfter, issuedBefore]);
+  }, [debouncedSearch, selectedIssuer, issuedAfter, issuedBefore, type]);
 
   useEffect(() => {
     let active = true;
@@ -116,6 +117,9 @@ export default function Home() {
     }
     if (issuedBefore.trim()) {
       params.set("issuedBefore", issuedBefore.trim());
+    }
+    if (type !== "ALL") {
+      params.set("category", type);
     }
 
     fetch(`/api/coins?${params.toString()}`, {
@@ -165,7 +169,7 @@ export default function Home() {
       active = false;
       controller.abort();
     };
-  }, [page, debouncedSearch, selectedIssuer, issuedAfter, issuedBefore]);
+  }, [page, debouncedSearch, selectedIssuer, issuedAfter, issuedBefore, type]);
 
   useEffect(() => {
     if (!isRawDataOpen || rawData !== null) {
@@ -178,11 +182,13 @@ export default function Home() {
     setIsRawLoading(true);
     setRawError(null);
 
-    const params = new URLSearchParams({
-      page: "1",
-      pageSize: String(PAGE_SIZE),
-      includeRaw: "true",
-    });
+    const params = new URLSearchParams();
+    params.set("page", "1");
+    params.set("pageSize", String(PAGE_SIZE));
+    params.set("includeRaw", "true");
+    if (type !== "ALL") {
+      params.set("category", type);
+    }
 
     fetch(`/api/coins?${params.toString()}`, {
       signal: controller.signal,
@@ -218,7 +224,7 @@ export default function Home() {
       active = false;
       controller.abort();
     };
-  }, [isRawDataOpen, rawData]);
+  }, [isRawDataOpen, rawData, type]);
 
   const effectiveTotalPages = Math.max(totalPages, 1);
   const displayPage = Math.max(1, Math.min(page, effectiveTotalPages));
@@ -293,7 +299,7 @@ export default function Home() {
           </div>
           <div className="gap-2 flex flex-col">
             <Label htmlFor="type">Type:</Label>
-            <Select disabled>
+            <Select value={type} onValueChange={(v) => setType(v)}>
               <SelectTrigger id="type" className="w-full">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
