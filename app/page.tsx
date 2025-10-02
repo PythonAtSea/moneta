@@ -72,13 +72,17 @@ export default function Home() {
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedIssuer, setSelectedIssuer] = useState("ALL");
-  const [issuedBefore, setIssuedBefore] = useState("");
-  const [issuedAfter, setIssuedAfter] = useState("");
+  const [issuedBefore, setIssuedBefore] = useState(
+    localStorage.getItem("issuedBefore") || ""
+  );
+  const [issuedAfter, setIssuedAfter] = useState(
+    localStorage.getItem("issuedAfter") || ""
+  );
   const [issuers, setIssuers] = useState<Issuer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [type, setType] = useState("ALL");
-  const [sort, setSort] = useState("newest");
+  const [type, setType] = useState(localStorage.getItem("type") || "ALL");
+  const [sort, setSort] = useState(localStorage.getItem("sort") || "newest");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
@@ -92,6 +96,22 @@ export default function Home() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, selectedIssuer, issuedAfter, issuedBefore, type, sort]);
+
+  useEffect(() => {
+    localStorage.setItem("issuedBefore", issuedBefore);
+  }, [issuedBefore]);
+
+  useEffect(() => {
+    localStorage.setItem("issuedAfter", issuedAfter);
+  }, [issuedAfter]);
+
+  useEffect(() => {
+    localStorage.setItem("type", type);
+  }, [type]);
+
+  useEffect(() => {
+    localStorage.setItem("sort", sort);
+  }, [sort]);
 
   useEffect(() => {
     let active = true;
@@ -505,7 +525,7 @@ export default function Home() {
                     )}
                   </div>
                 </CardContent>
-                <Link href={`/coinDetail?id=${coin.id}`}>
+                <Link href={`/currencyDetail?id=${coin.id}`}>
                   <CardFooter className="mt-auto flex items-center justify-between border-t text-sm">
                     <span>View Details</span>
                     <ChevronRight className="ml-2 h-4 w-4" />

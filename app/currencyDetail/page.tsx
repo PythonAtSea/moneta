@@ -1,11 +1,15 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Check, Loader2, SquareArrowOutUpRight } from "lucide-react";
+import { Copy, Check, Loader2, SquareArrowOutUpRight, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  PointerEvent as ReactPointerEvent,
+  WheelEvent as ReactWheelEvent,
+} from "react";
 
 type CoinSide = {
   engravers?: [string];
@@ -134,12 +138,137 @@ type CoinData = {
   references?: [CatalogueReference];
 };
 
+type ZoomedImage = {
+  src: string;
+  alt: string;
+  credit?: string;
+  creditUrl?: string;
+};
+
+const DEFAULT_MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 0.5;
+const MIN_FIT_SCALE = 0.1;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
 export default function Page() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<CoinData | null>(null);
   const [apiKey, setApiKey] = useState("");
   const searchParams = useSearchParams();
   const [shareIcon, setShareIcon] = useState(<Copy />);
+  const [zoomedImage, setZoomedImage] = useState<ZoomedImage | null>(null);
+  const [minZoom, setMinZoom] = useState(DEFAULT_MIN_ZOOM);
+  const [zoomScale, setZoomScale] = useState(DEFAULT_MIN_ZOOM);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  const resetZoomState = useCallback(
+    (nextScale?: number) => {
+      const target = nextScale ?? minZoom;
+      setZoomScale(target);
+      setPan({ x: 0, y: 0 });
+      setIsDragging(false);
+    },
+    [minZoom]
+  );
+
+  const closeZoom = useCallback(() => {
+    resetZoomState(DEFAULT_MIN_ZOOM);
+    setMinZoom(DEFAULT_MIN_ZOOM);
+    setZoomedImage(null);
+  }, [resetZoomState, setMinZoom]);
+
+  const applyZoom = useCallback(
+    (value: number) => {
+      const clamped = clamp(value, minZoom, MAX_ZOOM);
+      setZoomScale(clamped);
+      if (clamped === minZoom) {
+        setPan({ x: 0, y: 0 });
+      }
+    },
+    [minZoom]
+  );
+
+  const handleZoomIn = useCallback(() => {
+    applyZoom(zoomScale + ZOOM_STEP);
+  }, [applyZoom, zoomScale]);
+
+  const handleZoomOut = useCallback(() => {
+    applyZoom(zoomScale - ZOOM_STEP);
+  }, [applyZoom, zoomScale]);
+
+  const handleWheelZoom = useCallback(
+    (event: ReactWheelEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      applyZoom(zoomScale + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP));
+    },
+    [applyZoom, zoomScale]
+  );
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (zoomScale <= minZoom) return;
+      event.preventDefault();
+      setIsDragging(true);
+      dragStartRef.current = { x: event.clientX, y: event.clientY };
+      panStartRef.current = { ...pan };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [minZoom, pan, zoomScale]
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isDragging) return;
+      const deltaX = event.clientX - dragStartRef.current.x;
+      const deltaY = event.clientY - dragStartRef.current.y;
+      setPan({
+        x: panStartRef.current.x + deltaX,
+        y: panStartRef.current.y + deltaY,
+      });
+    },
+    [isDragging]
+  );
+
+  const endDrag = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isDragging) return;
+      setIsDragging(false);
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [isDragging]
+  );
+
+  const computeFitScale = useCallback(
+    (_event?: { naturalWidth: number; naturalHeight: number }) => {
+      void _event;
+      if (!zoomedImage) return;
+      const container = containerRef.current;
+      const image = imageRef.current;
+      if (!container || !image) return;
+
+      const { width, height } = container.getBoundingClientRect();
+      if (!width || !height) return;
+
+      const { naturalWidth, naturalHeight } = image;
+      if (!naturalWidth || !naturalHeight) return;
+
+      const ratio = Math.min(width / naturalWidth, height / naturalHeight);
+      const baseScale = clamp(ratio, MIN_FIT_SCALE, MAX_ZOOM);
+      setMinZoom(baseScale);
+      resetZoomState(baseScale);
+    },
+    [resetZoomState, setMinZoom, zoomedImage]
+  );
 
   useEffect(() => {
     const id = searchParams.get("id");
@@ -163,6 +292,51 @@ export default function Page() {
         setLoading(false);
       });
   }, [searchParams, apiKey]);
+
+  useEffect(() => {
+    if (!zoomedImage) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeZoom();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeZoom, zoomedImage]);
+
+  useEffect(() => {
+    if (!zoomedImage) return;
+    resetZoomState();
+  }, [resetZoomState, zoomedImage]);
+
+  useEffect(() => {
+    if (!zoomedImage) return;
+
+    const resizeHandler = () => computeFitScale();
+    const timeout = window.setTimeout(() => computeFitScale(), 0);
+
+    window.addEventListener("resize", resizeHandler);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("resize", resizeHandler);
+    };
+  }, [computeFitScale, zoomedImage]);
+
+  useEffect(() => {
+    if (!zoomedImage) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [zoomedImage]);
 
   return (
     <div
@@ -473,30 +647,50 @@ export default function Page() {
                         <h3 className="text-xl font-semibold text-white">
                           {section.title}
                         </h3>
-                        <a
-                          href={section.side!.picture}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-fit"
-                        >
-                          <Image
-                            src={section.side!.picture!}
-                            alt={
-                              section.side!.description ||
-                              data.title + " " + section.title.toLowerCase()
-                            }
-                            width={600}
-                            height={600}
-                          />
-                        </a>
-                        <a
-                          href={section.side!.picture_copyright_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-fit text-gray-400 text-sm -mt-1"
-                        >
-                          © {section.side?.picture_copyright}
-                        </a>
+                        {(() => {
+                          const description =
+                            section.side!.description ||
+                            data.title + " " + section.title.toLowerCase();
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setZoomedImage({
+                                  src: section.side!.picture!,
+                                  alt: description,
+                                  credit: section.side?.picture_copyright,
+                                  creditUrl:
+                                    section.side?.picture_copyright_url,
+                                })
+                              }
+                              className="w-fit cursor-zoom-in focus:outline-none"
+                            >
+                              <Image
+                                src={section.side!.picture!}
+                                alt={description}
+                                width={600}
+                                height={600}
+                                className="rounded-md"
+                              />
+                            </button>
+                          );
+                        })()}
+                        {section.side?.picture_copyright &&
+                          (section.side.picture_copyright_url ? (
+                            <a
+                              href={section.side.picture_copyright_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-fit text-gray-400 text-sm -mt-1"
+                            >
+                              © {section.side.picture_copyright}
+                            </a>
+                          ) : (
+                            <span className="w-fit text-gray-400 text-sm -mt-1">
+                              © {section.side.picture_copyright}
+                            </span>
+                          ))}
                         <p>
                           <span className="font-semibold text-gray-400">
                             DESCRIPTION:
@@ -624,6 +818,131 @@ export default function Page() {
           )
         )}
       </div>
+      {zoomedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+          onClick={closeZoom}
+        >
+          <div
+            className="relative flex max-h-[90vh] max-w-[90vw] flex-col gap-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeZoom}
+              className="absolute right-0 top-0 translate-x-20 -translate-y-1/2 rounded-md bg-white/10 p-2 text-white transition hover:bg-white/20 focus:outline-none"
+              aria-label="Close image"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div
+              className="relative flex max-h-[80vh] max-w-[80vw] items-center justify-center overflow-hidden rounded-md border border-white/10 bg-black/40"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={endDrag}
+              onPointerLeave={endDrag}
+              onWheel={handleWheelZoom}
+              ref={containerRef}
+            >
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px)`,
+                  transition: isDragging ? "none" : "transform 120ms ease-out",
+                  cursor:
+                    zoomScale > minZoom
+                      ? isDragging
+                        ? "grabbing"
+                        : "grab"
+                      : "default",
+                }}
+              >
+                <Image
+                  src={zoomedImage.src}
+                  alt={zoomedImage.alt}
+                  width={1600}
+                  height={1600}
+                  ref={imageRef}
+                  className="select-none"
+                  style={{
+                    transform: `scale(${zoomScale})`,
+                    transformOrigin: "center",
+                    transition: isDragging
+                      ? "none"
+                      : "transform 120ms ease-out",
+                  }}
+                  priority
+                  draggable={false}
+                  onLoadingComplete={() => computeFitScale()}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 text-center text-sm text-gray-200">
+              <span>{zoomedImage.alt}</span>
+              <div className="flex flex-wrap justify-center gap-3">
+                <a
+                  href={zoomedImage.src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-300 hover:underline"
+                >
+                  Open original
+                </a>
+                {zoomedImage.credit && (
+                  <span className="text-gray-400">
+                    © {zoomedImage.credit}
+                    {zoomedImage.creditUrl && (
+                      <>
+                        {" "}
+                        <a
+                          href={zoomedImage.creditUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-300 hover:underline"
+                        >
+                          License
+                        </a>
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-white">
+              <div className="flex items-center gap-2 rounded-md bg-white/10 px-3 py-1">
+                <button
+                  type="button"
+                  onClick={handleZoomOut}
+                  className="text-lg leading-none"
+                  aria-label="Zoom out"
+                  disabled={zoomScale <= minZoom + 0.01}
+                >
+                  -
+                </button>
+                <span className="font-medium">
+                  {Math.round((zoomScale / minZoom) * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={handleZoomIn}
+                  className="text-lg leading-none"
+                  aria-label="Zoom in"
+                  disabled={zoomScale >= MAX_ZOOM}
+                >
+                  +
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => resetZoomState()}
+                className="rounded-md bg-white/10 px-3 py-1 text-sm transition hover:bg-white/20"
+              >
+                Reset view
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
