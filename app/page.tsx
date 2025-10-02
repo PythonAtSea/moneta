@@ -9,6 +9,12 @@ import {
   SquareStar,
   Loader2,
   Shrimp,
+  CalendarArrowUp,
+  CalendarArrowDown,
+  ArrowDownAZ,
+  ArrowUpAZ,
+  ArrowDown01,
+  ArrowUp01,
 } from "lucide-react";
 import {
   Card,
@@ -69,7 +75,7 @@ export default function Home() {
   const [issuedBefore, setIssuedBefore] = useState("");
   const [issuedAfter, setIssuedAfter] = useState("");
   const [issuers, setIssuers] = useState<Issuer[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState("ALL");
   const [sort, setSort] = useState("newest");
@@ -223,6 +229,9 @@ export default function Home() {
   const displayPage = Math.max(1, Math.min(page, effectiveTotalPages));
 
   const rangeLabel = useMemo(() => {
+    if (isLoading) {
+      return "Loading...";
+    }
     if (!totalCount) {
       return "inflation fianlly destroyed not only the dollar, but all forms of currency. or the communists did it, idk. in all seriousness, nothing matches your filters.";
     }
@@ -231,7 +240,7 @@ export default function Home() {
     return `Showing ${start}-${end} of ${totalCount} coin${
       totalCount === 1 ? "" : "s"
     }`;
-  }, [displayPage, totalCount]);
+  }, [displayPage, isLoading, totalCount]);
 
   return (
     <div>
@@ -323,14 +332,38 @@ export default function Home() {
                 <SelectValue placeholder="Select a sorting system" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="oldest">Oldest</SelectItem>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="issuer-asc">Issuer A-Z</SelectItem>
-                <SelectItem value="issuer-desc">Issuer Z-A</SelectItem>
-                <SelectItem value="id-asc">ID Ascending</SelectItem>
-                <SelectItem value="id-desc">ID Descending</SelectItem>
-                <SelectItem value="title-asc">Name A-Z</SelectItem>
-                <SelectItem value="title-desc">Name Z-A</SelectItem>
+                <SelectItem value="newest">
+                  <CalendarArrowUp />
+                  Newest
+                </SelectItem>
+                <SelectItem value="oldest">
+                  <CalendarArrowDown />
+                  Oldest
+                </SelectItem>
+                <SelectItem value="issuer-asc">
+                  <ArrowDownAZ />
+                  Issuer A-Z
+                </SelectItem>
+                <SelectItem value="issuer-desc">
+                  <ArrowUpAZ />
+                  Issuer Z-A
+                </SelectItem>
+                <SelectItem value="id-asc">
+                  <ArrowDown01 />
+                  ID Ascending
+                </SelectItem>
+                <SelectItem value="id-desc">
+                  <ArrowUp01 />
+                  ID Descending
+                </SelectItem>
+                <SelectItem value="title-asc">
+                  <ArrowDownAZ />
+                  Name A-Z
+                </SelectItem>
+                <SelectItem value="title-desc">
+                  <ArrowUpAZ />
+                  Name Z-A
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
