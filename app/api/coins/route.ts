@@ -14,6 +14,7 @@ type RawCoin = {
   maxYear?: number;
   category?: string;
   [key: string]: unknown;
+  id: number;
 };
 
 type CategoryOption = {
@@ -120,6 +121,49 @@ const filterCoins = (
   });
 };
 
+const sortCoins = (coins: typeof sortedCoins, sortSystem: string | null) => {
+  switch (sortSystem) {
+    case "newest":
+      return [...coins].sort((a, b) => (b.maxYear ?? 0) - (a.maxYear ?? 0));
+    case "oldest":
+      return [...coins].sort((a, b) => {
+        const aVal = Number.isFinite(a.minYear as number)
+          ? (a.minYear as number)
+          : Infinity;
+        const bVal = Number.isFinite(b.minYear as number)
+          ? (b.minYear as number)
+          : Infinity;
+        return aVal - bVal;
+      });
+    case "title-asc":
+      return [...coins].sort((a, b) =>
+        (a.title ?? "").localeCompare(b.title ?? "", undefined, {
+          sensitivity: "base",
+        })
+      );
+    case "title-desc":
+      return [...coins].sort((a, b) =>
+        (b.title ?? "").localeCompare(a.title ?? "", undefined, {
+          sensitivity: "base",
+        })
+      );
+    case "issuer-asc":
+      return [...coins].sort((a, b) =>
+        a.issuerCode!.localeCompare(b.issuerCode!)
+      );
+    case "issuer-desc":
+      return [...coins].sort((a, b) =>
+        b.issuerCode!.localeCompare(a.issuerCode!)
+      );
+    case "id-asc":
+      return [...coins].sort((a, b) => a.id - b.id);
+    case "id-desc":
+      return [...coins].sort((a, b) => b.id - a.id);
+    default:
+      return coins;
+  }
+};
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const searchParams = url.searchParams;
@@ -132,6 +176,7 @@ export async function GET(req: NextRequest) {
   const issuedBeforeParam = searchParams.get("issuedBefore");
   const includeRaw = searchParams.get("includeRaw") === "true";
   const categoryParam = searchParams.get("category");
+  const sortParam = searchParams.get("sort");
 
   const pageCandidate = Number.parseInt(pageParam ?? "1", 10);
   const page =
@@ -145,13 +190,16 @@ export async function GET(req: NextRequest) {
   const issuedAfter = parseYear(issuedAfterParam);
   const issuedBefore = parseYear(issuedBeforeParam);
 
-  const filteredCoins = filterCoins(
-    sortedCoins,
-    searchParam,
-    issuerParam,
-    issuedAfter,
-    issuedBefore,
-    categoryParam
+  const filteredCoins = sortCoins(
+    filterCoins(
+      sortedCoins,
+      searchParam,
+      issuerParam,
+      issuedAfter,
+      issuedBefore,
+      categoryParam
+    ),
+    sortParam
   );
 
   const total = filteredCoins.length;

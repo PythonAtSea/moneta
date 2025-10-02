@@ -12,8 +12,9 @@ import {
   ChevronDown,
   ChevronRight,
   Coins,
-  Currency,
+  SquareStar,
   Loader2,
+  Shrimp,
 } from "lucide-react";
 import {
   Card,
@@ -81,6 +82,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState("ALL");
+  const [sort, setSort] = useState("newest");
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -92,7 +94,7 @@ export default function Home() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedIssuer, issuedAfter, issuedBefore, type]);
+  }, [debouncedSearch, selectedIssuer, issuedAfter, issuedBefore, type, sort]);
 
   useEffect(() => {
     let active = true;
@@ -121,6 +123,7 @@ export default function Home() {
     if (type !== "ALL") {
       params.set("category", type);
     }
+    params.set("sort", sort);
 
     fetch(`/api/coins?${params.toString()}`, {
       signal: controller.signal,
@@ -169,7 +172,15 @@ export default function Home() {
       active = false;
       controller.abort();
     };
-  }, [page, debouncedSearch, selectedIssuer, issuedAfter, issuedBefore, type]);
+  }, [
+    page,
+    debouncedSearch,
+    selectedIssuer,
+    issuedAfter,
+    issuedBefore,
+    type,
+    sort,
+  ]);
 
   useEffect(() => {
     if (!isRawDataOpen || rawData !== null) {
@@ -304,10 +315,40 @@ export default function Home() {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Types</SelectItem>
-                <SelectItem value="coin">Coins</SelectItem>
-                <SelectItem value="banknote">Banknotes</SelectItem>
-                <SelectItem value="exonumia">Exonumia</SelectItem>
+                <SelectItem value="ALL">
+                  <Shrimp />
+                  All Types
+                </SelectItem>
+                <SelectItem value="coin">
+                  <Coins />
+                  Coins
+                </SelectItem>
+                <SelectItem value="banknote">
+                  <Banknote />
+                  Banknotes
+                </SelectItem>
+                <SelectItem value="exonumia">
+                  <SquareStar />
+                  Exonumia
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="gap-2 flex flex-col">
+            <Label htmlFor="sort">Sort:</Label>
+            <Select value={sort} onValueChange={(v) => setSort(v)}>
+              <SelectTrigger id="sort" className="w-full">
+                <SelectValue placeholder="Select a sorting system" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oldest">Oldest</SelectItem>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="issuer-asc">Issuer A-Z</SelectItem>
+                <SelectItem value="issuer-desc">Issuer Z-A</SelectItem>
+                <SelectItem value="id-asc">ID Ascending</SelectItem>
+                <SelectItem value="id-desc">ID Descending</SelectItem>
+                <SelectItem value="title-asc">Name A-Z</SelectItem>
+                <SelectItem value="title-desc">Name Z-A</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -385,7 +426,7 @@ export default function Home() {
                       <Banknote className="inline mr-2" />
                     )}
                     {coin.category === "exonumia" && (
-                      <Currency className="inline mr-2" />
+                      <SquareStar className="inline mr-2" />
                     )}
                     {coin.title || "Untitled coin"}
                   </CardTitle>
