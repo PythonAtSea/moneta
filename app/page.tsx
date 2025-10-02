@@ -1,15 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
   Banknote,
-  ChevronDown,
   ChevronRight,
   Coins,
   SquareStar,
@@ -69,10 +63,6 @@ export default function Home() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [isRawDataOpen, setIsRawDataOpen] = useState(false);
-  const [rawData, setRawData] = useState<Coin[] | null>(null);
-  const [isRawLoading, setIsRawLoading] = useState(false);
-  const [rawError, setRawError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedIssuer, setSelectedIssuer] = useState("ALL");
@@ -83,6 +73,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState("ALL");
   const [sort, setSort] = useState("newest");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -180,18 +171,12 @@ export default function Home() {
     issuedBefore,
     type,
     sort,
+    refreshTrigger,
   ]);
 
   useEffect(() => {
-    if (!isRawDataOpen || rawData !== null) {
-      return;
-    }
-
     let active = true;
     const controller = new AbortController();
-
-    setIsRawLoading(true);
-    setRawError(null);
 
     const params = new URLSearchParams();
     params.set("page", "1");
@@ -210,11 +195,10 @@ export default function Home() {
         }
         return res.json() as Promise<CoinsResponse>;
       })
-      .then((data) => {
+      .then(() => {
         if (!active) {
           return;
         }
-        setRawData(data.raw ?? data.items ?? []);
       })
       .catch((err: unknown) => {
         if (!active) {
@@ -223,11 +207,9 @@ export default function Home() {
         if (err instanceof DOMException && err.name === "AbortError") {
           return;
         }
-        setRawError(err instanceof Error ? err.message : "Unexpected error");
       })
       .finally(() => {
         if (active) {
-          setIsRawLoading(false);
         }
       });
 
@@ -235,14 +217,14 @@ export default function Home() {
       active = false;
       controller.abort();
     };
-  }, [isRawDataOpen, rawData, type]);
+  }, [type]);
 
   const effectiveTotalPages = Math.max(totalPages, 1);
   const displayPage = Math.max(1, Math.min(page, effectiveTotalPages));
 
   const rangeLabel = useMemo(() => {
     if (!totalCount) {
-      return "No coins to display";
+      return "inflation fianlly destroyed not only the dollar, but all forms of currency. or the communists did it, idk. in all seriousness, nothing matches your filters.";
     }
     const start = (displayPage - 1) * PAGE_SIZE + 1;
     const end = Math.min(displayPage * PAGE_SIZE, totalCount);
@@ -358,6 +340,19 @@ export default function Home() {
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <div className="flex items-center gap-2">
+            <Button
+              disabled={isLoading}
+              onClick={() => setRefreshTrigger((prev) => prev + 1)}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>Refresh</>
+              )}
+            </Button>
             <Button
               variant="outline"
               className={isLoading ? "animate-pulse" : ""}
@@ -488,39 +483,51 @@ export default function Home() {
           })
         )}
       </div>
-      <Collapsible open={isRawDataOpen} onOpenChange={setIsRawDataOpen}>
-        <CollapsibleTrigger asChild>
-          <Button className="mt-4 w-full" variant="ghost">
-            Raw Data
-            <ChevronDown
-              className={`transition-transform ${
-                isRawDataOpen ? "rotate-180" : ""
-              }`}
-            />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          {isRawLoading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading raw data…</span>
-            </div>
-          )}
-          {rawError && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {rawError}
-            </div>
-          )}
-          {rawData && (
-            <>
-              <p>Total items: {rawData.length}</p>
-              <pre className="whitespace-pre-wrap">
-                {JSON.stringify(rawData, null, 2)}
-              </pre>
-            </>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
+
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-row gap-2 items-center justify-center pt-8">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className={isLoading ? "animate-pulse" : ""}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={displayPage <= 1 || isLoading}
+            >
+              Previous
+            </Button>
+            <span className="text-sm font-medium">
+              <Input
+                type="number"
+                value={displayPage}
+                onChange={(e) => setPage(Number(e.target.value))}
+                className="w-16 mr-2"
+              />
+              of {effectiveTotalPages}
+            </span>
+            <Button
+              variant="outline"
+              className={isLoading ? "animate-pulse" : ""}
+              onClick={() =>
+                setPage((prev) =>
+                  totalCount === 0 ? 1 : Math.min(prev + 1, effectiveTotalPages)
+                )
+              }
+              disabled={
+                isLoading ||
+                totalCount === 0 ||
+                displayPage >= effectiveTotalPages
+              }
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+        {error && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
