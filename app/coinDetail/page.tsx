@@ -376,6 +376,15 @@ export default function Page() {
                       {data.tags.join(", ")}
                     </p>
                   )}
+                  {data.category && (
+                    <p>
+                      <span className="font-semibold text-gray-400">TYPE:</span>{" "}
+                      {data.category
+                        ? data.category.charAt(0).toUpperCase() +
+                          data.category.slice(1)
+                        : ""}
+                    </p>
+                  )}
                 </div>
               )}
               {data.size || data.size2 || data.weight || data.thickness ? (
