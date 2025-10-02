@@ -585,7 +585,15 @@ export default function Page() {
                   </h2>
                   <p>
                     {data.comments
-                      ? data.comments.replace(/<[^>]*>/g, "")
+                      ? (() => {
+                          const stripped = data.comments.replace(
+                            /<[^>]*>/g,
+                            ""
+                          );
+                          const textarea = document.createElement("textarea");
+                          textarea.innerHTML = stripped;
+                          return textarea.value;
+                        })()
                       : null}
                   </p>
                 </>

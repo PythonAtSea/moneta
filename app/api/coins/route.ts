@@ -91,17 +91,24 @@ const filterCoins = (
   const searchLower = search?.trim().toLowerCase() ?? "";
   const hasSearch = searchLower.length > 0;
   const issuerFilter = issuer && issuer !== "ALL" ? issuer : null;
-  const categoryFilter = category && category !== "ALL" ? category.toLowerCase() : null;
+  const categoryFilter =
+    category && category !== "ALL" ? category.toLowerCase() : null;
 
   return coins.filter((coin) => {
     const title = coin.title ?? "";
-    const matchesSearch = hasSearch ? title.toLowerCase().includes(searchLower) : true;
-    const matchesIssuer = issuerFilter ? coin.issuerCode === issuerFilter : true;
+    const matchesSearch = hasSearch
+      ? title.toLowerCase().includes(searchLower)
+      : true;
+    const matchesIssuer = issuerFilter
+      ? coin.issuerCode === issuerFilter
+      : true;
     const matchesIssuedAfter =
       issuedAfter !== undefined ? (coin.maxYear ?? 9999) >= issuedAfter : true;
     const matchesIssuedBefore =
       issuedBefore !== undefined ? (coin.minYear ?? 0) <= issuedBefore : true;
-    const matchesCategory = categoryFilter ? coin.category === categoryFilter : true;
+    const matchesCategory = categoryFilter
+      ? coin.category === categoryFilter
+      : true;
 
     return (
       matchesSearch &&
@@ -127,7 +134,8 @@ export async function GET(req: NextRequest) {
   const categoryParam = searchParams.get("category");
 
   const pageCandidate = Number.parseInt(pageParam ?? "1", 10);
-  const page = Number.isFinite(pageCandidate) && pageCandidate > 0 ? pageCandidate : 1;
+  const page =
+    Number.isFinite(pageCandidate) && pageCandidate > 0 ? pageCandidate : 1;
 
   const pageSizeCandidate = Number.parseInt(pageSizeParam ?? "", 10);
   const pageSize = Number.isFinite(pageSizeCandidate)
