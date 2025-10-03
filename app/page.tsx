@@ -72,18 +72,21 @@ export default function Home() {
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedIssuer, setSelectedIssuer] = useState("ALL");
-  const [issuedBefore, setIssuedBefore] = useState(
-    localStorage.getItem("issuedBefore") || ""
-  );
-  const [issuedAfter, setIssuedAfter] = useState(
-    localStorage.getItem("issuedAfter") || ""
-  );
+  const [issuedBefore, setIssuedBefore] = useState("");
+  const [issuedAfter, setIssuedAfter] = useState("");
   const [issuers, setIssuers] = useState<Issuer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [type, setType] = useState(localStorage.getItem("type") || "ALL");
-  const [sort, setSort] = useState(localStorage.getItem("sort") || "newest");
+  const [type, setType] = useState("ALL");
+  const [sort, setSort] = useState("newest");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    setIssuedBefore(localStorage.getItem("issuedBefore") || "");
+    setIssuedAfter(localStorage.getItem("issuedAfter") || "");
+    setType(localStorage.getItem("type") || "ALL");
+    setSort(localStorage.getItem("sort") || "newest");
+  }, []);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {

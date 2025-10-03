@@ -27,8 +27,8 @@ import {
 const API_BASE_URL = "https://api.numista.com/v3/types";
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_RETRIES = 3;
-const BASE_RETRY_DELAY_MS = 1000;
-const MAX_CONSECUTIVE_429 = 2;
+const BASE_RETRY_DELAY_MS = 1500;
+const MAX_CONSECUTIVE_429 = 3;
 
 const LANGUAGE_OPTIONS = [
   { label: "English", value: "en" },
