@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import {
   Banknote,
@@ -15,6 +16,8 @@ import {
   ArrowUpAZ,
   ArrowDown01,
   ArrowUp01,
+  Heart,
+  HeartPlus,
 } from "lucide-react";
 import {
   Card,
@@ -64,189 +67,107 @@ type CoinsResponse = {
 
 const PAGE_SIZE = 90;
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function Home() {
   const [coins, setCoins] = useState<Coin[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [searchText, setSearchText] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedIssuer, setSelectedIssuer] = useState("ALL");
   const [issuedBefore, setIssuedBefore] = useState("");
   const [issuedAfter, setIssuedAfter] = useState("");
   const [issuers, setIssuers] = useState<Issuer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState("ALL");
   const [sort, setSort] = useState("newest");
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
-  useEffect(() => {
-    setIssuedBefore(localStorage.getItem("issuedBefore") || "");
-    setIssuedAfter(localStorage.getItem("issuedAfter") || "");
-    setType(localStorage.getItem("type") || "ALL");
-    setSort(localStorage.getItem("sort") || "newest");
-  }, []);
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      setDebouncedSearch(searchText);
-    }, 300);
-
-    return () => window.clearTimeout(handle);
-  }, [searchText]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, selectedIssuer, issuedAfter, issuedBefore, type, sort]);
-
-  useEffect(() => {
-    localStorage.setItem("issuedBefore", issuedBefore);
-  }, [issuedBefore]);
-
-  useEffect(() => {
-    localStorage.setItem("issuedAfter", issuedAfter);
-  }, [issuedAfter]);
-
-  useEffect(() => {
-    localStorage.setItem("type", type);
-  }, [type]);
-
-  useEffect(() => {
-    localStorage.setItem("sort", sort);
-  }, [sort]);
-
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    setIsLoading(true);
-    setError(null);
-
-    const params = new URLSearchParams({
+  const params = useMemo(() => {
+    const p = new URLSearchParams({
       page: String(page),
       pageSize: String(PAGE_SIZE),
     });
 
-    if (debouncedSearch.trim()) {
-      params.set("search", debouncedSearch.trim());
+    if (searchText.trim()) {
+      p.set("search", searchText.trim());
     }
     if (selectedIssuer !== "ALL") {
-      params.set("issuer", selectedIssuer);
+      p.set("issuer", selectedIssuer);
     }
     if (issuedAfter.trim()) {
-      params.set("issuedAfter", issuedAfter.trim());
+      p.set("issuedAfter", issuedAfter.trim());
     }
     if (issuedBefore.trim()) {
-      params.set("issuedBefore", issuedBefore.trim());
+      p.set("issuedBefore", issuedBefore.trim());
     }
     if (type !== "ALL") {
-      params.set("category", type);
+      p.set("category", type);
     }
-    params.set("sort", sort);
+    p.set("sort", sort);
 
-    fetch(`/api/coins?${params.toString()}`, {
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load coins (${res.status})`);
-        }
-        return res.json() as Promise<CoinsResponse>;
-      })
-      .then((data) => {
-        if (!active) {
-          return;
-        }
+    return p;
+  }, [page, searchText, selectedIssuer, issuedAfter, issuedBefore, type, sort]);
 
-        setCoins(data.items);
-        setTotalCount(data.total);
-        setTotalPages(data.totalPages || 1);
-        if (data.issuers) {
-          setIssuers(data.issuers);
-        }
-
-        if (data.page !== page) {
-          setPage(data.page);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!active) {
-          return;
-        }
-        if (err instanceof DOMException && err.name === "AbortError") {
-          return;
-        }
-        setError(err instanceof Error ? err.message : "Unexpected error");
-        setCoins([]);
-        setTotalCount(0);
-        setTotalPages(1);
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [
-    page,
-    debouncedSearch,
-    selectedIssuer,
-    issuedAfter,
-    issuedBefore,
-    type,
-    sort,
-    refreshTrigger,
-  ]);
+  const { data, error, isLoading, mutate } = useSWR<CoinsResponse>(
+    `/api/coins?${params.toString()}`,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
+    }
+  );
 
   useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    const params = new URLSearchParams();
-    params.set("page", "1");
-    params.set("pageSize", String(PAGE_SIZE));
-    params.set("includeRaw", "true");
-    if (type !== "ALL") {
-      params.set("category", type);
+    try {
+      const storedFavorites = localStorage.getItem("favorites");
+      if (storedFavorites) {
+        setFavorites(JSON.parse(storedFavorites));
+      }
+    } catch (error) {
+      console.error("Failed to load favorites from localStorage:", error);
     }
+  }, []);
 
-    fetch(`/api/coins?${params.toString()}`, {
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load raw data (${res.status})`);
-        }
-        return res.json() as Promise<CoinsResponse>;
-      })
-      .then(() => {
-        if (!active) {
-          return;
-        }
-      })
-      .catch((err: unknown) => {
-        if (!active) {
-          return;
-        }
-        if (err instanceof DOMException && err.name === "AbortError") {
-          return;
-        }
-      })
-      .finally(() => {
-        if (active) {
-        }
-      });
+  useEffect(() => {
+    try {
+      localStorage.setItem("favorites", JSON.stringify(favorites));
+    } catch (error) {
+      console.error("Failed to save favorites to localStorage:", error);
+    }
+  }, [favorites]);
 
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [type]);
+  const { data: issuersData } = useSWR<CoinsResponse>(
+    type === "ALL"
+      ? "/api/coins?page=1&pageSize=1"
+      : `/api/coins?page=1&pageSize=1&category=${type}`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 10000,
+    }
+  );
+
+  useEffect(() => {
+    if (issuersData?.issuers) {
+      setIssuers(issuersData.issuers);
+    }
+  }, [issuersData]);
+
+  useEffect(() => {
+    if (data) {
+      setCoins(data.items);
+      setTotalCount(data.total);
+      setTotalPages(data.totalPages || 1);
+      if (data.issuers) {
+        setIssuers(data.issuers);
+      }
+      if (data.page !== page) {
+        setPage(data.page);
+      }
+    }
+  }, [data, page]);
 
   const effectiveTotalPages = Math.max(totalPages, 1);
   const displayPage = Math.max(1, Math.min(page, effectiveTotalPages));
@@ -396,10 +317,7 @@ export default function Home() {
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <div className="flex items-center gap-2">
-            <Button
-              disabled={isLoading}
-              onClick={() => setRefreshTrigger((prev) => prev + 1)}
-            >
+            <Button disabled={isLoading} onClick={() => mutate()}>
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" />
@@ -446,7 +364,7 @@ export default function Home() {
         </div>
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+            {error.message || "Failed to load coins"}
           </div>
         )}
       </div>
@@ -469,7 +387,7 @@ export default function Home() {
             return (
               <Card key={key} className="flex h-full flex-col">
                 <CardHeader>
-                  <CardTitle>
+                  <CardTitle className="flex items-center">
                     {coin.category === "coin" && (
                       <Coins className="inline mr-2" />
                     )}
@@ -480,6 +398,25 @@ export default function Home() {
                       <SquareStar className="inline mr-2" />
                     )}
                     {coin.title || "Untitled coin"}
+                    <Button
+                      variant={favorites.includes(key) ? "default" : "outline"}
+                      className="ml-auto"
+                      onClick={() => {
+                        setFavorites((prev) => {
+                          if (prev.includes(key)) {
+                            return prev.filter((fav) => fav !== key);
+                          } else {
+                            return [...prev, key];
+                          }
+                        });
+                      }}
+                    >
+                      {favorites.includes(key) ? (
+                        <Heart aria-label="Remove from favorites" />
+                      ) : (
+                        <HeartPlus aria-label="Add to favorites" />
+                      )}
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-3 text-sm">
@@ -580,7 +517,7 @@ export default function Home() {
         </div>
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+            {error.message || "Failed to load coins"}
           </div>
         )}
       </div>
