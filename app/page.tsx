@@ -37,6 +37,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 type Coin = {
   id?: string | number;
@@ -82,6 +83,7 @@ export default function Home() {
   const [type, setType] = useState("ALL");
   const [sort, setSort] = useState("newest");
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [favoriteFilter, setFavoriteFilter] = useState(false);
 
   const params = useMemo(() => {
     const p = new URLSearchParams({
@@ -105,10 +107,22 @@ export default function Home() {
       p.set("category", type);
     }
     p.set("sort", sort);
+    if (favoriteFilter && favorites.length > 0) {
+      p.set("ids", favorites.join(","));
+    }
 
     return p;
-  }, [page, searchText, selectedIssuer, issuedAfter, issuedBefore, type, sort]);
-
+  }, [
+    page,
+    searchText,
+    selectedIssuer,
+    issuedAfter,
+    issuedBefore,
+    type,
+    sort,
+    favoriteFilter,
+    favorites,
+  ]);
   const { data, error, isLoading, mutate } = useSWR<CoinsResponse>(
     `/api/coins?${params.toString()}`,
     fetcher,
@@ -311,6 +325,16 @@ export default function Home() {
               </SelectContent>
             </Select>
           </div>
+          <div className="gap-2 flex flex-row flex-grow">
+            <Label htmlFor="favorite-filter">Favorites Only</Label>
+            <Switch
+              className="ml-auto"
+              disabled={favorites.length === 0}
+              checked={favoriteFilter && favorites.length > 0}
+              onCheckedChange={setFavoriteFilter}
+              id="favorite-filter"
+            />
+          </div>
         </CardContent>
       </Card>
       <div className="mb-4 space-y-3">
@@ -400,7 +424,7 @@ export default function Home() {
                     {coin.title || "Untitled coin"}
                     <Button
                       variant={favorites.includes(key) ? "default" : "outline"}
-                      className="ml-auto"
+                      className="ml-auto w-10"
                       onClick={() => {
                         setFavorites((prev) => {
                           if (prev.includes(key)) {

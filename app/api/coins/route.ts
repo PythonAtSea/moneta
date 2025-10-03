@@ -87,7 +87,8 @@ const filterCoins = (
   issuer: string | null,
   issuedAfter: number | undefined,
   issuedBefore: number | undefined,
-  category: string | null
+  category: string | null,
+  ids?: string[] | null
 ) => {
   const searchLower = search?.trim().toLowerCase() ?? "";
   const hasSearch = searchLower.length > 0;
@@ -110,13 +111,16 @@ const filterCoins = (
     const matchesCategory = categoryFilter
       ? coin.category === categoryFilter
       : true;
+    const matchesIds =
+      ids && ids.length > 0 ? ids.includes(String(coin.id)) : true;
 
     return (
       matchesSearch &&
       matchesIssuer &&
       matchesIssuedAfter &&
       matchesIssuedBefore &&
-      matchesCategory
+      matchesCategory &&
+      matchesIds
     );
   });
 };
@@ -177,6 +181,7 @@ export async function GET(req: NextRequest) {
   const includeRaw = searchParams.get("includeRaw") === "true";
   const categoryParam = searchParams.get("category");
   const sortParam = searchParams.get("sort");
+  const idsParam = searchParams.get("ids");
 
   const pageCandidate = Number.parseInt(pageParam ?? "1", 10);
   const page =
@@ -197,7 +202,8 @@ export async function GET(req: NextRequest) {
       issuerParam,
       issuedAfter,
       issuedBefore,
-      categoryParam
+      categoryParam,
+      idsParam ? idsParam.split(",").map((id) => id.trim()) : null
     ),
     sortParam
   );
