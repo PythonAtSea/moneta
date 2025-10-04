@@ -88,7 +88,8 @@ const filterCoins = (
   issuedAfter: number | undefined,
   issuedBefore: number | undefined,
   category: string | null,
-  ids?: string[] | null
+  ids?: string[] | null,
+  strictDate = false
 ) => {
   const searchLower = search?.trim().toLowerCase() ?? "";
   const hasSearch = searchLower.length > 0;
@@ -104,10 +105,20 @@ const filterCoins = (
     const matchesIssuer = issuerFilter
       ? coin.issuerCode === issuerFilter
       : true;
-    const matchesIssuedAfter =
-      issuedAfter !== undefined ? (coin.maxYear ?? 9999) >= issuedAfter : true;
-    const matchesIssuedBefore =
-      issuedBefore !== undefined ? (coin.minYear ?? 0) <= issuedBefore : true;
+    const matchesIssuedAfter = strictDate
+      ? issuedAfter !== undefined
+        ? (coin.minYear ?? 0) >= issuedAfter
+        : true
+      : issuedAfter !== undefined
+      ? (coin.maxYear ?? 9999) >= issuedAfter
+      : true;
+    const matchesIssuedBefore = strictDate
+      ? issuedBefore !== undefined
+        ? (coin.maxYear ?? 9999) <= issuedBefore
+        : true
+      : issuedBefore !== undefined
+      ? (coin.minYear ?? 0) <= issuedBefore
+      : true;
     const matchesCategory = categoryFilter
       ? coin.category === categoryFilter
       : true;
@@ -182,6 +193,7 @@ export async function GET(req: NextRequest) {
   const categoryParam = searchParams.get("category");
   const sortParam = searchParams.get("sort");
   const idsParam = searchParams.get("ids");
+  const strictDateParam = searchParams.get("strictDate");
 
   const pageCandidate = Number.parseInt(pageParam ?? "1", 10);
   const page =
@@ -203,7 +215,8 @@ export async function GET(req: NextRequest) {
       issuedAfter,
       issuedBefore,
       categoryParam,
-      idsParam ? idsParam.split(",").map((id) => id.trim()) : null
+      idsParam ? idsParam.split(",").map((id) => id.trim()) : null,
+      strictDateParam === "true"
     ),
     sortParam
   );

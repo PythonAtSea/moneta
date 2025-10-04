@@ -84,6 +84,7 @@ export default function Home() {
   const [sort, setSort] = useState("newest");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoriteFilter, setFavoriteFilter] = useState(false);
+  const [strictDate, setStrictDate] = useState(false);
 
   const params = useMemo(() => {
     const p = new URLSearchParams({
@@ -333,6 +334,16 @@ export default function Home() {
               checked={favoriteFilter && favorites.length > 0}
               onCheckedChange={setFavoriteFilter}
               id="favorite-filter"
+            />
+          </div>
+          <div className="gap-2 flex flex-row flex-grow">
+            <Label htmlFor="strictDate">Strict date filter</Label>
+            <Switch
+              className="ml-auto"
+              checked={strictDate}
+              disabled={!issuedAfter || !issuedBefore}
+              onCheckedChange={setStrictDate}
+              id="strictDate"
             />
           </div>
         </CardContent>
