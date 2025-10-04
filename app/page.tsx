@@ -111,6 +111,9 @@ export default function Home() {
     if (favoriteFilter && favorites.length > 0) {
       p.set("ids", favorites.join(","));
     }
+    if (strictDate) {
+      p.set("strictDate", "true");
+    }
 
     return p;
   }, [
@@ -123,6 +126,7 @@ export default function Home() {
     sort,
     favoriteFilter,
     favorites,
+    strictDate,
   ]);
   const { data, error, isLoading, mutate } = useSWR<CoinsResponse>(
     `/api/coins?${params.toString()}`,
