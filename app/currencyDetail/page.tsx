@@ -668,6 +668,7 @@ function PageContent() {
                               className="w-fit cursor-zoom-in focus:outline-none"
                             >
                               <Image
+                                unoptimized
                                 src={section.side!.picture!}
                                 alt={description}
                                 width={600}
@@ -859,6 +860,7 @@ function PageContent() {
                 }}
               >
                 <Image
+                  unoptimized
                   src={zoomedImage.src}
                   alt={zoomedImage.alt}
                   width={1600}

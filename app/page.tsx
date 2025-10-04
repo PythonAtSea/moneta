@@ -459,6 +459,7 @@ export default function Home() {
                   <div className="flex flex-row gap-4">
                     {coin.frontThumbUrl ? (
                       <Image
+                        unoptimized
                         src={String(coin.frontThumbUrl)}
                         alt={`${coin.title || "Coin"} front`}
                         width={100}
@@ -474,6 +475,7 @@ export default function Home() {
                     )}
                     {coin.backThumbUrl ? (
                       <Image
+                        unoptimized
                         src={String(coin.backThumbUrl)}
                         alt={`${coin.title || "Coin"} back`}
                         width={100}
