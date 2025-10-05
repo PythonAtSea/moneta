@@ -404,7 +404,7 @@ function PageContent() {
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:underline"
                           >
-                            ({data.issuing_entity.wikidata_id})
+                            (Wikidata: {data.issuing_entity.wikidata_id})
                           </a>
                         </>
                       )}
@@ -425,7 +425,8 @@ function PageContent() {
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:underline"
                           >
-                            ({data.secondary_issuing_entity.wikidata_id})
+                            (Wikidata:{" "}
+                            {data.secondary_issuing_entity.wikidata_id})
                           </a>
                         </>
                       )}
@@ -502,7 +503,7 @@ function PageContent() {
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
                               >
-                                ({r.wikidata_id})
+                                ( Wikidata: {r.wikidata_id})
                               </a>
                             </>
                           )}
@@ -765,7 +766,7 @@ function PageContent() {
                     {data.related_types?.map((coin) => (
                       <Link
                         key={coin.id}
-                        href={`/coinDetail?id=${coin.id}`}
+                        href={`/currencyDetail?id=${coin.id}`}
                         className="text-blue-500 hover:underline font-medium mr-2"
                       >
                         {coin.title}

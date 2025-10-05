@@ -66,7 +66,7 @@ type CoinsResponse = {
   raw?: Coin[];
 };
 
-const PAGE_SIZE = 90;
+const DEFAULT_PAGE_SIZE = "90";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -85,11 +85,13 @@ export default function Home() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoriteFilter, setFavoriteFilter] = useState(false);
   const [strictDate, setStrictDate] = useState(false);
+  const [resultsPerPage, setResultsPerPage] = useState(DEFAULT_PAGE_SIZE);
+  const [currentPageSize, setCurrentPageSize] = useState<number | null>(null);
 
   const params = useMemo(() => {
     const p = new URLSearchParams({
       page: String(page),
-      pageSize: String(PAGE_SIZE),
+      pageSize: String(resultsPerPage),
     });
 
     if (searchText.trim()) {
@@ -118,6 +120,7 @@ export default function Home() {
     return p;
   }, [
     page,
+    resultsPerPage,
     searchText,
     selectedIssuer,
     issuedAfter,
@@ -179,6 +182,7 @@ export default function Home() {
       setCoins(data.items);
       setTotalCount(data.total);
       setTotalPages(data.totalPages || 1);
+      setCurrentPageSize(data.pageSize);
       if (data.issuers) {
         setIssuers(data.issuers);
       }
@@ -192,18 +196,18 @@ export default function Home() {
   const displayPage = Math.max(1, Math.min(page, effectiveTotalPages));
 
   const rangeLabel = useMemo(() => {
-    if (isLoading) {
+    if (isLoading || !currentPageSize) {
       return "Loading...";
     }
     if (!totalCount) {
       return "inflation fianlly destroyed not only the dollar, but all forms of currency. or the communists did it, idk. in all seriousness, nothing matches your filters.";
     }
-    const start = (displayPage - 1) * PAGE_SIZE + 1;
-    const end = Math.min(displayPage * PAGE_SIZE, totalCount);
+    const start = (displayPage - 1) * currentPageSize + 1;
+    const end = Math.min(displayPage * currentPageSize, totalCount);
     return `Showing ${start}-${end} of ${totalCount} coin${
       totalCount === 1 ? "" : "s"
     }`;
-  }, [displayPage, isLoading, totalCount]);
+  }, [displayPage, isLoading, currentPageSize, totalCount]);
 
   return (
     <div>
@@ -349,6 +353,25 @@ export default function Home() {
               onCheckedChange={setStrictDate}
               id="strictDate"
             />
+          </div>
+          <div className="gap-2 flex flex-col">
+            <Label htmlFor="resultsPerPage">Results Per Page:</Label>
+            <Select
+              value={resultsPerPage}
+              onValueChange={(v) => setResultsPerPage(v)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select results per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="12">12</SelectItem>
+                <SelectItem value="30">30</SelectItem>
+                <SelectItem value="60">60</SelectItem>
+                <SelectItem value="90">90</SelectItem>
+                <SelectItem value="180">180</SelectItem>
+                <SelectItem value="360">360</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

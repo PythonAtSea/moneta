@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import coinsData from "@/app/unitedStatesMoney.json";
+import coinsData2 from "@/app/unitedStatesCoins.json";
 
 type Issuer = {
   code: string;
@@ -24,7 +25,7 @@ type CategoryOption = {
 };
 
 const PAGE_SIZE_FALLBACK = 12;
-const MAX_PAGE_SIZE = 100;
+const MAX_PAGE_SIZE = 360;
 
 const CATEGORY_CONFIG: CategoryOption[] = [
   { code: "coins", name: "Coins", value: "coin" },
@@ -32,11 +33,16 @@ const CATEGORY_CONFIG: CategoryOption[] = [
   { code: "exonumia", name: "Exonumia", value: "exonumia" },
 ];
 
-const sourceCoins: RawCoin[] = Array.isArray(coinsData)
-  ? (coinsData as RawCoin[])
-  : [];
+const sourceCoins: RawCoin[] = [
+  ...(Array.isArray(coinsData) ? (coinsData as RawCoin[]) : []),
+  ...(Array.isArray(coinsData2) ? (coinsData2 as RawCoin[]) : []),
+];
 
-const normalizedCoins = sourceCoins.map((coin) => ({
+const uniqueSourceCoins = Array.from(
+  new Map(sourceCoins.map((coin) => [coin.id, coin])).values()
+);
+
+const normalizedCoins = uniqueSourceCoins.map((coin) => ({
   ...coin,
   title: typeof coin.title === "string" ? coin.title : "",
 }));
