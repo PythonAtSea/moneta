@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,6 +76,7 @@ export default function Home() {
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [searchText, setSearchText] = useState("");
+  const [inputSearch, setInputSearch] = useState("");
   const [selectedIssuer, setSelectedIssuer] = useState("ALL");
   const [issuedBefore, setIssuedBefore] = useState("");
   const [issuedAfter, setIssuedAfter] = useState("");
@@ -160,23 +161,6 @@ export default function Home() {
     }
   }, [favorites]);
 
-  const { data: issuersData } = useSWR<CoinsResponse>(
-    type === "ALL"
-      ? "/api/coins?page=1&pageSize=1"
-      : `/api/coins?page=1&pageSize=1&category=${type}`,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    }
-  );
-
-  useEffect(() => {
-    if (issuersData?.issuers) {
-      setIssuers(issuersData.issuers);
-    }
-  }, [issuersData]);
-
   useEffect(() => {
     if (data) {
       setCoins(data.items);
@@ -191,6 +175,16 @@ export default function Home() {
       }
     }
   }, [data, page]);
+
+  const toggleFavorite = useCallback((key: string) => {
+    setFavorites((prev) => {
+      if (prev.includes(key)) {
+        return prev.filter((fav) => fav !== key);
+      } else {
+        return [...prev, key];
+      }
+    });
+  }, []);
 
   const effectiveTotalPages = Math.max(totalPages, 1);
   const displayPage = Math.max(1, Math.min(page, effectiveTotalPages));
@@ -209,6 +203,108 @@ export default function Home() {
     }`;
   }, [displayPage, isLoading, currentPageSize, totalCount]);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setSearchText(inputSearch);
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [inputSearch]);
+
+  const coinElements = useMemo(
+    () =>
+      coins.map((coin) => {
+        const key =
+          coin.id !== undefined && coin.id !== null
+            ? String(coin.id)
+            : `${coin.title ?? "coin"}-${coin.issuerCode ?? "unknown"}-${
+                coin.maxYear ?? ""
+              }`;
+
+        return (
+          <Card key={key} className="flex h-full flex-col">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                {coin.category === "coin" && <Coins className="inline mr-2" />}
+                {coin.category === "banknote" && (
+                  <Banknote className="inline mr-2" />
+                )}
+                {coin.category === "exonumia" && (
+                  <SquareStar className="inline mr-2" />
+                )}
+                {coin.title || "Untitled coin"}
+                <Button
+                  variant={favorites.includes(key) ? "default" : "outline"}
+                  className="ml-auto w-10"
+                  onClick={() => toggleFavorite(key)}
+                >
+                  {favorites.includes(key) ? (
+                    <Heart aria-label="Remove from favorites" />
+                  ) : (
+                    <HeartPlus aria-label="Add to favorites" />
+                  )}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-grow space-y-3 text-sm">
+              <p>
+                Issued by {coin.issuerName || "Unknown issuer"}
+                {coin.minYear && coin.minYear === coin.maxYear
+                  ? ` in ${coin.minYear}`
+                  : coin.minYear && coin.maxYear
+                  ? ` from ${coin.minYear} to ${coin.maxYear}`
+                  : coin.minYear
+                  ? ` starting in ${coin.minYear}`
+                  : coin.maxYear
+                  ? ` up to ${coin.maxYear}`
+                  : ", unknown year"}
+              </p>
+              <div className="flex flex-row gap-4">
+                {coin.frontThumbUrl ? (
+                  <Image
+                    unoptimized
+                    src={String(coin.frontThumbUrl)}
+                    alt={`${coin.title || "Coin"} front`}
+                    width={100}
+                    height={100}
+                    className="mt-2"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center bg-gray-200">
+                    <span className="text-center text-xs text-gray-600">
+                      No Front Image
+                    </span>
+                  </div>
+                )}
+                {coin.backThumbUrl ? (
+                  <Image
+                    unoptimized
+                    src={String(coin.backThumbUrl)}
+                    alt={`${coin.title || "Coin"} back`}
+                    width={100}
+                    height={100}
+                    className="mt-2"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center bg-gray-200">
+                    <span className="text-center text-xs text-gray-600">
+                      No Back Image
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+            <Link href={`/currencyDetail?id=${coin.id}`}>
+              <CardFooter className="mt-auto flex items-center justify-between border-t text-sm">
+                <span>View Details</span>
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </CardFooter>
+            </Link>
+          </Card>
+        );
+      }),
+    [coins, favorites, toggleFavorite]
+  );
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">United States Coins</h1>
@@ -223,8 +319,8 @@ export default function Home() {
               id="search"
               type="text"
               placeholder="Washington Quarter"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              value={inputSearch}
+              onChange={(e) => setInputSearch(e.target.value)}
             />
           </div>
           <div className="gap-2 flex flex-col">
@@ -334,7 +430,7 @@ export default function Home() {
               </SelectContent>
             </Select>
           </div>
-          <div className="gap-2 flex flex-row flex-grow">
+          <div className="gap-2 flex flex-row flex-grow h-fit">
             <Label htmlFor="favorite-filter">Favorites Only</Label>
             <Switch
               className="ml-auto"
@@ -344,7 +440,7 @@ export default function Home() {
               id="favorite-filter"
             />
           </div>
-          <div className="gap-2 flex flex-row flex-grow">
+          <div className="gap-2 flex flex-row flex-grow h-fit">
             <Label htmlFor="strictDate">Strict date filter</Label>
             <Switch
               className="ml-auto"
@@ -379,6 +475,38 @@ export default function Home() {
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              disabled={
+                !searchText &&
+                selectedIssuer === "ALL" &&
+                !issuedAfter &&
+                !issuedBefore &&
+                type === "ALL" &&
+                sort === "newest" &&
+                page === 1 &&
+                inputSearch === "" &&
+                !favoriteFilter &&
+                !strictDate &&
+                resultsPerPage === DEFAULT_PAGE_SIZE
+              }
+              onClick={() => {
+                setSearchText("");
+                setIssuers([]);
+                setSelectedIssuer("ALL");
+                setIssuedAfter("");
+                setIssuedBefore("");
+                setType("ALL");
+                setSort("newest");
+                setPage(1);
+                setInputSearch("");
+                setFavoriteFilter(false);
+                setStrictDate(false);
+                setResultsPerPage(DEFAULT_PAGE_SIZE);
+              }}
+            >
+              Clear Filters
+            </Button>
             <Button disabled={isLoading} onClick={() => mutate()}>
               {isLoading ? (
                 <>
@@ -438,109 +566,20 @@ export default function Home() {
             </CardContent>
           </Card>
         ) : (
-          coins.map((coin) => {
-            const key =
-              coin.id !== undefined && coin.id !== null
-                ? String(coin.id)
-                : `${coin.title ?? "coin"}-${coin.issuerCode ?? "unknown"}-${
-                    coin.maxYear ?? ""
-                  }`;
-
-            return (
-              <Card key={key} className="flex h-full flex-col">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    {coin.category === "coin" && (
-                      <Coins className="inline mr-2" />
-                    )}
-                    {coin.category === "banknote" && (
-                      <Banknote className="inline mr-2" />
-                    )}
-                    {coin.category === "exonumia" && (
-                      <SquareStar className="inline mr-2" />
-                    )}
-                    {coin.title || "Untitled coin"}
-                    <Button
-                      variant={favorites.includes(key) ? "default" : "outline"}
-                      className="ml-auto w-10"
-                      onClick={() => {
-                        setFavorites((prev) => {
-                          if (prev.includes(key)) {
-                            return prev.filter((fav) => fav !== key);
-                          } else {
-                            return [...prev, key];
-                          }
-                        });
-                      }}
-                    >
-                      {favorites.includes(key) ? (
-                        <Heart aria-label="Remove from favorites" />
-                      ) : (
-                        <HeartPlus aria-label="Add to favorites" />
-                      )}
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow space-y-3 text-sm">
-                  <p>
-                    Issued by {coin.issuerName || "Unknown issuer"}
-                    {coin.minYear && coin.minYear === coin.maxYear
-                      ? ` in ${coin.minYear}`
-                      : coin.minYear && coin.maxYear
-                      ? ` from ${coin.minYear} to ${coin.maxYear}`
-                      : coin.minYear
-                      ? ` starting in ${coin.minYear}`
-                      : coin.maxYear
-                      ? ` up to ${coin.maxYear}`
-                      : ", unknown year"}
-                  </p>
-                  <div className="flex flex-row gap-4">
-                    {coin.frontThumbUrl ? (
-                      <Image
-                        unoptimized
-                        src={String(coin.frontThumbUrl)}
-                        alt={`${coin.title || "Coin"} front`}
-                        width={100}
-                        height={100}
-                        className="mt-2"
-                      />
-                    ) : (
-                      <div className="flex h-24 w-24 items-center justify-center bg-gray-200">
-                        <span className="text-center text-xs text-gray-600">
-                          No Front Image
-                        </span>
-                      </div>
-                    )}
-                    {coin.backThumbUrl ? (
-                      <Image
-                        unoptimized
-                        src={String(coin.backThumbUrl)}
-                        alt={`${coin.title || "Coin"} back`}
-                        width={100}
-                        height={100}
-                        className="mt-2"
-                      />
-                    ) : (
-                      <div className="flex h-24 w-24 items-center justify-center bg-gray-200">
-                        <span className="text-center text-xs text-gray-600">
-                          No Back Image
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-                <Link href={`/currencyDetail?id=${coin.id}`}>
-                  <CardFooter className="mt-auto flex items-center justify-between border-t text-sm">
-                    <span>View Details</span>
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </CardFooter>
-                </Link>
-              </Card>
-            );
-          })
+          coinElements
         )}
       </div>
-
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {!isLoading && !coins.length && !error ? (
+          <Card className="col-span-full border-2 border-dashed border-muted-foreground/40 bg-muted/20">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              No coins match the selected filters.
+            </CardContent>
+          </Card>
+        ) : (
+          coinElements
+        )}
+      </div>
       <div className="mb-4 space-y-3">
         <div className="flex flex-row gap-2 items-center justify-center pt-8">
           <div className="flex items-center gap-2">
