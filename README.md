@@ -1,6 +1,6 @@
 # Moneta
 
-Moneta is a coin database. It gets its data from Numista. Right now it only has US coins (and i guess banknotes and "exonumia", which just means weird types of currency), but once I find the time to scrape every single bit of data from numista it (should) have everything. Anyway, have fun!
+Moneta is a coin database. It gets its data from [Numista](https://en.numista.com/api/index.php). Right now it only has US coins (and i guess banknotes and "exonumia", which just means weird types of currency), but once I find the time to scrape every single bit of data from numista it (should) have everything. Anyway, have fun!
 
 ## Building locally
 
