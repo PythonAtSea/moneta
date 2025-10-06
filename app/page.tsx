@@ -189,6 +189,8 @@ export default function Home() {
   const effectiveTotalPages = Math.max(totalPages, 1);
   const displayPage = Math.max(1, Math.min(page, effectiveTotalPages));
 
+  const totalInDB = 28433;
+
   const rangeLabel = useMemo(() => {
     if (isLoading || !currentPageSize) {
       return "Loading...";
@@ -198,10 +200,12 @@ export default function Home() {
     }
     const start = (displayPage - 1) * currentPageSize + 1;
     const end = Math.min(displayPage * currentPageSize, totalCount);
-    return `Showing ${start}-${end} of ${totalCount} coin${
-      totalCount === 1 ? "" : "s"
-    }`;
-  }, [displayPage, isLoading, currentPageSize, totalCount]);
+    const matching = totalCount;
+    const notMatching = totalInDB - matching;
+    return `Showing ${start}-${end} of ${matching} coin${
+      matching === 1 ? "" : "s"
+    } matching filters (${notMatching} do not match)`;
+  }, [displayPage, isLoading, currentPageSize, totalCount, totalInDB]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -475,38 +479,39 @@ export default function Home() {
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <div className="flex items-center gap-2">
-            <Button
-              variant="destructive"
-              disabled={
-                !searchText &&
-                selectedIssuer === "ALL" &&
-                !issuedAfter &&
-                !issuedBefore &&
-                type === "ALL" &&
-                sort === "newest" &&
-                page === 1 &&
-                inputSearch === "" &&
-                !favoriteFilter &&
-                !strictDate &&
-                resultsPerPage === DEFAULT_PAGE_SIZE
-              }
-              onClick={() => {
-                setSearchText("");
-                setIssuers([]);
-                setSelectedIssuer("ALL");
-                setIssuedAfter("");
-                setIssuedBefore("");
-                setType("ALL");
-                setSort("newest");
-                setPage(1);
-                setInputSearch("");
-                setFavoriteFilter(false);
-                setStrictDate(false);
-                setResultsPerPage(DEFAULT_PAGE_SIZE);
-              }}
-            >
-              Clear Filters
-            </Button>
+            {!(
+              !searchText &&
+              selectedIssuer === "ALL" &&
+              !issuedAfter &&
+              !issuedBefore &&
+              type === "ALL" &&
+              sort === "newest" &&
+              page === 1 &&
+              inputSearch === "" &&
+              !favoriteFilter &&
+              !strictDate &&
+              resultsPerPage === DEFAULT_PAGE_SIZE
+            ) && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setSearchText("");
+                  setIssuers([]);
+                  setSelectedIssuer("ALL");
+                  setIssuedAfter("");
+                  setIssuedBefore("");
+                  setType("ALL");
+                  setSort("newest");
+                  setPage(1);
+                  setInputSearch("");
+                  setFavoriteFilter(false);
+                  setStrictDate(false);
+                  setResultsPerPage(DEFAULT_PAGE_SIZE);
+                }}
+              >
+                Reset Filters
+              </Button>
+            )}
             <Button disabled={isLoading} onClick={() => mutate()}>
               {isLoading ? (
                 <>
